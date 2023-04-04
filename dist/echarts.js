@@ -15364,13 +15364,14 @@
       var labelFetcher = opt.labelFetcher;
       var labelDataIndex = opt.labelDataIndex;
       var labelDimIndex = opt.labelDimIndex;
+      var labelValue = opt.labelValue;
       var normalModel = stateModels.normal;
       var baseText;
 
       if (labelFetcher) {
-        baseText = labelFetcher.getFormattedLabel(labelDataIndex, 'normal', null, labelDimIndex, normalModel && normalModel.get('formatter'), interpolatedValue != null ? {
-          interpolatedValue: interpolatedValue
-        } : null);
+        baseText = labelFetcher.getFormattedLabel(labelDataIndex, 'normal', null, labelDimIndex, normalModel && normalModel.get('formatter'), {
+          interpolatedValue: retrieve2(interpolatedValue, labelValue)
+        });
       }
 
       if (baseText == null) {
@@ -28858,7 +28859,7 @@
 
                 if (ecData && ecData.dataIndex != null) {
                   var dataModel = ecData.dataModel || ecModel.getSeriesByIndex(ecData.seriesIndex);
-                  params = dataModel && dataModel.getDataParams(ecData.dataIndex, ecData.dataType) || {};
+                  params = dataModel && dataModel.getDataParams(ecData.dataIndex, ecData.dataType, el) || {};
                   return true;
                 } // If element has custom eventData of components
                 else if (ecData.eventData) {
@@ -50479,7 +50480,8 @@
             moveOnMouseMove: true,
             // By default, wheel do not trigger move.
             moveOnMouseWheel: false,
-            preventDefaultMouseMove: true
+            preventDefaultMouseMove: true,
+            gestureOnTouchPad: false
           });
 
           if (controlType == null) {
@@ -50586,6 +50588,7 @@
       RoamController.prototype._mousewheelHandler = function (e) {
         var shouldZoom = isAvailableBehavior('zoomOnMouseWheel', e, this._opt);
         var shouldMove = isAvailableBehavior('moveOnMouseWheel', e, this._opt);
+        var gestureOnTouchPad = this._opt.gestureOnTouchPad;
         var wheelDelta = e.wheelDelta;
         var absWheelDeltaDelta = Math.abs(wheelDelta);
         var originX = e.offsetX;
@@ -50597,6 +50600,48 @@
         // their event both, and the final behavior is determined
         // by event listener themselves.
 
+
+        if (gestureOnTouchPad) {
+          var WindowScrollSpeedFactor = .3;
+          var zoomFactor = 1.1;
+          var wheelZoomSpeed = 1 / 23; // FIXME zrender type error
+
+          var wheelEvent = e.event;
+          var offsetY = 0;
+          var offsetX = 0;
+
+          if (wheelEvent.deltaY) {
+            offsetY = Math.round(wheelEvent.deltaY * WindowScrollSpeedFactor);
+          }
+
+          if (wheelEvent.deltaX) {
+            offsetX = Math.round(wheelEvent.deltaX * WindowScrollSpeedFactor);
+          }
+
+          if (Math.abs(offsetY) > Math.abs(offsetX) && shouldZoom) {
+            checkPointerAndTrigger(this, 'zoom', 'zoomOnMouseWheel', e, {
+              scale: 1 / Math.pow(zoomFactor, wheelEvent.deltaY * wheelZoomSpeed),
+              originX: originX,
+              originY: originY,
+              isAvailableBehavior: null
+            });
+          } else {
+            shouldMove && checkPointerAndTrigger(this, 'pan', 'moveOnMouseMove', e, {
+              // @ts-nocheck
+              originX: originX,
+              originY: originY,
+              oldX: originX,
+              oldY: originY,
+              dx: -offsetX,
+              dy: -offsetY,
+              newX: originX - offsetX,
+              newY: originY - offsetY,
+              isAvailableBehavior: null
+            });
+          }
+
+          return;
+        }
 
         if (shouldZoom) {
           // Convenience:
@@ -60196,6 +60241,22 @@
     function makeSymbolTypeKey(symbolCategory) {
       return '_' + symbolCategory + 'Type';
     }
+
+    function makeSymbolTypeValue(name, lineData, idx) {
+      var symbolType = lineData.getItemVisual(idx, name);
+
+      if (!symbolType || symbolType === 'none') {
+        return symbolType;
+      }
+
+      var symbolSize = lineData.getItemVisual(idx, name + 'Size');
+      var symbolRotate = lineData.getItemVisual(idx, name + 'Rotate');
+      var symbolOffset = lineData.getItemVisual(idx, name + 'Offset');
+      var symbolKeepAspect = lineData.getItemVisual(idx, name + 'KeepAspect');
+      var symbolSizeArr = normalizeSymbolSize(symbolSize);
+      var symbolOffsetArr = normalizeSymbolOffset(symbolOffset || 0, symbolSizeArr);
+      return symbolType + symbolSizeArr + symbolOffsetArr + (symbolRotate || '') + (symbolKeepAspect || '');
+    }
     /**
      * @inner
      */
@@ -60276,7 +60337,7 @@
           // Or symbol position and rotation update in line#beforeUpdate will be one frame slow
 
           this.add(symbol);
-          this[makeSymbolTypeKey(symbolCategory)] = lineData.getItemVisual(idx, symbolCategory);
+          this[makeSymbolTypeKey(symbolCategory)] = makeSymbolTypeValue(symbolCategory, lineData, idx);
         }, this);
 
         this._updateCommonStl(lineData, idx, seriesScope);
@@ -60293,7 +60354,7 @@
         setLinePoints(target.shape, linePoints);
         updateProps(line, target, seriesModel, idx);
         each(SYMBOL_CATEGORIES, function (symbolCategory) {
-          var symbolType = lineData.getItemVisual(idx, symbolCategory);
+          var symbolType = makeSymbolTypeValue(symbolCategory, lineData, idx);
           var key = makeSymbolTypeKey(symbolCategory); // Symbol changed
 
           if (this[key] !== symbolType) {
@@ -61482,6 +61543,53 @@
         return dataIndices;
       };
 
+      GraphNode.prototype.getTrajectoryDataIndices = function () {
+        var connectedEdgesMap = createHashMap();
+        var connectedNodesMap = createHashMap();
+
+        for (var i = 0; i < this.edges.length; i++) {
+          var adjacentEdge = this.edges[i];
+
+          if (adjacentEdge.dataIndex < 0) {
+            continue;
+          }
+
+          connectedEdgesMap.set(adjacentEdge.dataIndex, true);
+          var sourceNodesQueue = [adjacentEdge.node1];
+          var targetNodesQueue = [adjacentEdge.node2];
+          var nodeIteratorIndex = 0;
+
+          while (nodeIteratorIndex < sourceNodesQueue.length) {
+            var sourceNode = sourceNodesQueue[nodeIteratorIndex];
+            nodeIteratorIndex++;
+            connectedNodesMap.set(sourceNode.dataIndex, true);
+
+            for (var j = 0; j < sourceNode.inEdges.length; j++) {
+              connectedEdgesMap.set(sourceNode.inEdges[j].dataIndex, true);
+              sourceNodesQueue.push(sourceNode.inEdges[j].node1);
+            }
+          }
+
+          nodeIteratorIndex = 0;
+
+          while (nodeIteratorIndex < targetNodesQueue.length) {
+            var targetNode = targetNodesQueue[nodeIteratorIndex];
+            nodeIteratorIndex++;
+            connectedNodesMap.set(targetNode.dataIndex, true);
+
+            for (var j = 0; j < targetNode.outEdges.length; j++) {
+              connectedEdgesMap.set(targetNode.outEdges[j].dataIndex, true);
+              targetNodesQueue.push(targetNode.outEdges[j].node2);
+            }
+          }
+        }
+
+        return {
+          edge: connectedEdgesMap.keys(),
+          node: connectedNodesMap.keys()
+        };
+      };
+
       return GraphNode;
     }();
 
@@ -61510,6 +61618,44 @@
         return {
           edge: [this.dataIndex],
           node: [this.node1.dataIndex, this.node2.dataIndex]
+        };
+      };
+
+      GraphEdge.prototype.getTrajectoryDataIndices = function () {
+        var connectedEdgesMap = createHashMap();
+        var connectedNodesMap = createHashMap();
+        connectedEdgesMap.set(this.dataIndex, true);
+        var sourceNodes = [this.node1];
+        var targetNodes = [this.node2];
+        var nodeIteratorIndex = 0;
+
+        while (nodeIteratorIndex < sourceNodes.length) {
+          var sourceNode = sourceNodes[nodeIteratorIndex];
+          nodeIteratorIndex++;
+          connectedNodesMap.set(sourceNode.dataIndex, true);
+
+          for (var j = 0; j < sourceNode.inEdges.length; j++) {
+            connectedEdgesMap.set(sourceNode.inEdges[j].dataIndex, true);
+            sourceNodes.push(sourceNode.inEdges[j].node1);
+          }
+        }
+
+        nodeIteratorIndex = 0;
+
+        while (nodeIteratorIndex < targetNodes.length) {
+          var targetNode = targetNodes[nodeIteratorIndex];
+          nodeIteratorIndex++;
+          connectedNodesMap.set(targetNode.dataIndex, true);
+
+          for (var j = 0; j < targetNode.outEdges.length; j++) {
+            connectedEdgesMap.set(targetNode.outEdges[j].dataIndex, true);
+            targetNodes.push(targetNode.outEdges[j].node2);
+          }
+        }
+
+        return {
+          edge: connectedEdgesMap.keys(),
+          node: connectedNodesMap.keys()
         };
       };
 
@@ -65838,7 +65984,7 @@
           group.add(curve);
           edgeData.setItemGraphicEl(edge.dataIndex, curve);
           var focus = emphasisModel.get('focus');
-          toggleHoverEmphasis(curve, focus === 'adjacency' ? edge.getAdjacentDataIndices() : focus, emphasisModel.get('blurScope'), emphasisModel.get('disabled'));
+          toggleHoverEmphasis(curve, focus === 'adjacency' ? edge.getAdjacentDataIndices() : focus === 'trajectory' ? edge.getTrajectoryDataIndices() : focus, emphasisModel.get('blurScope'), emphasisModel.get('disabled'));
           getECData(curve).dataType = 'edge';
         }); // Generate a rect for each node
 
@@ -65861,6 +66007,7 @@
           setLabelStyle(rect, getLabelStatesModels(itemModel), {
             labelFetcher: seriesModel,
             labelDataIndex: node.dataIndex,
+            labelValue: layout.value,
             defaultText: node.id
           });
           rect.disableLabelAnimation = true;
@@ -65871,7 +66018,7 @@
           nodeData.setItemGraphicEl(node.dataIndex, rect);
           getECData(rect).dataType = 'node';
           var focus = emphasisModel.get('focus');
-          toggleHoverEmphasis(rect, focus === 'adjacency' ? node.getAdjacentDataIndices() : focus, emphasisModel.get('blurScope'), emphasisModel.get('disabled'));
+          toggleHoverEmphasis(rect, focus === 'adjacency' ? node.getAdjacentDataIndices() : focus === 'trajectory' ? node.getTrajectoryDataIndices() : focus, emphasisModel.get('blurScope'), emphasisModel.get('disabled'));
         });
         nodeData.eachItemGraphicEl(function (el, dataIndex) {
           var itemModel = nodeData.getItemModel(dataIndex);
@@ -89112,8 +89259,10 @@
         'type_undefined': -1
       };
       var preventDefaultMouseMove = true;
+      var gestureOnTouchPad = false;
       dataZoomInfoMap.each(function (dataZoomInfo) {
         var dataZoomModel = dataZoomInfo.model;
+        gestureOnTouchPad = gestureOnTouchPad || !!dataZoomModel.get('gestureOnTouchPad');
         var oneType = dataZoomModel.get('disabled', true) ? false : dataZoomModel.get('zoomLock', true) ? 'move' : true;
 
         if (typePriority[prefix + oneType] > typePriority[prefix + controlType]) {
@@ -89133,7 +89282,8 @@
           zoomOnMouseWheel: true,
           moveOnMouseMove: true,
           moveOnMouseWheel: true,
-          preventDefaultMouseMove: !!preventDefaultMouseMove
+          preventDefaultMouseMove: !!preventDefaultMouseMove,
+          gestureOnTouchPad: gestureOnTouchPad
         }
       };
     }

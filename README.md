@@ -1,3 +1,5 @@
+## Until https://github.com/apache/echarts/pull/17288 get merged
+
 # Apache ECharts
 
 <a href="https://echarts.apache.org/">

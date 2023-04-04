@@ -15226,13 +15226,14 @@
       var labelFetcher = opt.labelFetcher;
       var labelDataIndex = opt.labelDataIndex;
       var labelDimIndex = opt.labelDimIndex;
+      var labelValue = opt.labelValue;
       var normalModel = stateModels.normal;
       var baseText;
 
       if (labelFetcher) {
-        baseText = labelFetcher.getFormattedLabel(labelDataIndex, 'normal', null, labelDimIndex, normalModel && normalModel.get('formatter'), interpolatedValue != null ? {
-          interpolatedValue: interpolatedValue
-        } : null);
+        baseText = labelFetcher.getFormattedLabel(labelDataIndex, 'normal', null, labelDimIndex, normalModel && normalModel.get('formatter'), {
+          interpolatedValue: retrieve2(interpolatedValue, labelValue)
+        });
       }
 
       if (baseText == null) {
@@ -28502,7 +28503,7 @@
 
                 if (ecData && ecData.dataIndex != null) {
                   var dataModel = ecData.dataModel || ecModel.getSeriesByIndex(ecData.seriesIndex);
-                  params = dataModel && dataModel.getDataParams(ecData.dataIndex, ecData.dataType) || {};
+                  params = dataModel && dataModel.getDataParams(ecData.dataIndex, ecData.dataType, el) || {};
                   return true;
                 } // If element has custom eventData of components
                 else if (ecData.eventData) {
@@ -57678,6 +57679,22 @@
     function makeSymbolTypeKey(symbolCategory) {
       return '_' + symbolCategory + 'Type';
     }
+
+    function makeSymbolTypeValue(name, lineData, idx) {
+      var symbolType = lineData.getItemVisual(idx, name);
+
+      if (!symbolType || symbolType === 'none') {
+        return symbolType;
+      }
+
+      var symbolSize = lineData.getItemVisual(idx, name + 'Size');
+      var symbolRotate = lineData.getItemVisual(idx, name + 'Rotate');
+      var symbolOffset = lineData.getItemVisual(idx, name + 'Offset');
+      var symbolKeepAspect = lineData.getItemVisual(idx, name + 'KeepAspect');
+      var symbolSizeArr = normalizeSymbolSize(symbolSize);
+      var symbolOffsetArr = normalizeSymbolOffset(symbolOffset || 0, symbolSizeArr);
+      return symbolType + symbolSizeArr + symbolOffsetArr + (symbolRotate || '') + (symbolKeepAspect || '');
+    }
     /**
      * @inner
      */
@@ -57758,7 +57775,7 @@
           // Or symbol position and rotation update in line#beforeUpdate will be one frame slow
 
           this.add(symbol);
-          this[makeSymbolTypeKey(symbolCategory)] = lineData.getItemVisual(idx, symbolCategory);
+          this[makeSymbolTypeKey(symbolCategory)] = makeSymbolTypeValue(symbolCategory, lineData, idx);
         }, this);
 
         this._updateCommonStl(lineData, idx, seriesScope);
@@ -57775,7 +57792,7 @@
         setLinePoints(target.shape, linePoints);
         updateProps(line, target, seriesModel, idx);
         each(SYMBOL_CATEGORIES, function (symbolCategory) {
-          var symbolType = lineData.getItemVisual(idx, symbolCategory);
+          var symbolType = makeSymbolTypeValue(symbolCategory, lineData, idx);
           var key = makeSymbolTypeKey(symbolCategory); // Symbol changed
 
           if (this[key] !== symbolType) {
@@ -60555,7 +60572,8 @@
             moveOnMouseMove: true,
             // By default, wheel do not trigger move.
             moveOnMouseWheel: false,
-            preventDefaultMouseMove: true
+            preventDefaultMouseMove: true,
+            gestureOnTouchPad: false
           });
 
           if (controlType == null) {
@@ -60662,6 +60680,7 @@
       RoamController.prototype._mousewheelHandler = function (e) {
         var shouldZoom = isAvailableBehavior('zoomOnMouseWheel', e, this._opt);
         var shouldMove = isAvailableBehavior('moveOnMouseWheel', e, this._opt);
+        var gestureOnTouchPad = this._opt.gestureOnTouchPad;
         var wheelDelta = e.wheelDelta;
         var absWheelDeltaDelta = Math.abs(wheelDelta);
         var originX = e.offsetX;
@@ -60673,6 +60692,48 @@
         // their event both, and the final behavior is determined
         // by event listener themselves.
 
+
+        if (gestureOnTouchPad) {
+          var WindowScrollSpeedFactor = .3;
+          var zoomFactor = 1.1;
+          var wheelZoomSpeed = 1 / 23; // FIXME zrender type error
+
+          var wheelEvent = e.event;
+          var offsetY = 0;
+          var offsetX = 0;
+
+          if (wheelEvent.deltaY) {
+            offsetY = Math.round(wheelEvent.deltaY * WindowScrollSpeedFactor);
+          }
+
+          if (wheelEvent.deltaX) {
+            offsetX = Math.round(wheelEvent.deltaX * WindowScrollSpeedFactor);
+          }
+
+          if (Math.abs(offsetY) > Math.abs(offsetX) && shouldZoom) {
+            checkPointerAndTrigger(this, 'zoom', 'zoomOnMouseWheel', e, {
+              scale: 1 / Math.pow(zoomFactor, wheelEvent.deltaY * wheelZoomSpeed),
+              originX: originX,
+              originY: originY,
+              isAvailableBehavior: null
+            });
+          } else {
+            shouldMove && checkPointerAndTrigger(this, 'pan', 'moveOnMouseMove', e, {
+              // @ts-nocheck
+              originX: originX,
+              originY: originY,
+              oldX: originX,
+              oldY: originY,
+              dx: -offsetX,
+              dy: -offsetY,
+              newX: originX - offsetX,
+              newY: originY - offsetY,
+              isAvailableBehavior: null
+            });
+          }
+
+          return;
+        }
 
         if (shouldZoom) {
           // Convenience:
@@ -60868,8 +60929,10 @@
         'type_undefined': -1
       };
       var preventDefaultMouseMove = true;
+      var gestureOnTouchPad = false;
       dataZoomInfoMap.each(function (dataZoomInfo) {
         var dataZoomModel = dataZoomInfo.model;
+        gestureOnTouchPad = gestureOnTouchPad || !!dataZoomModel.get('gestureOnTouchPad');
         var oneType = dataZoomModel.get('disabled', true) ? false : dataZoomModel.get('zoomLock', true) ? 'move' : true;
 
         if (typePriority[prefix + oneType] > typePriority[prefix + controlType]) {
@@ -60889,7 +60952,8 @@
           zoomOnMouseWheel: true,
           moveOnMouseMove: true,
           moveOnMouseWheel: true,
-          preventDefaultMouseMove: !!preventDefaultMouseMove
+          preventDefaultMouseMove: !!preventDefaultMouseMove,
+          gestureOnTouchPad: gestureOnTouchPad
         }
       };
     }

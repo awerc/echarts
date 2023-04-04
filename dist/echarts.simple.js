@@ -14895,13 +14895,14 @@
       var labelFetcher = opt.labelFetcher;
       var labelDataIndex = opt.labelDataIndex;
       var labelDimIndex = opt.labelDimIndex;
+      var labelValue = opt.labelValue;
       var normalModel = stateModels.normal;
       var baseText;
 
       if (labelFetcher) {
-        baseText = labelFetcher.getFormattedLabel(labelDataIndex, 'normal', null, labelDimIndex, normalModel && normalModel.get('formatter'), interpolatedValue != null ? {
-          interpolatedValue: interpolatedValue
-        } : null);
+        baseText = labelFetcher.getFormattedLabel(labelDataIndex, 'normal', null, labelDimIndex, normalModel && normalModel.get('formatter'), {
+          interpolatedValue: retrieve2(interpolatedValue, labelValue)
+        });
       }
 
       if (baseText == null) {
@@ -27500,7 +27501,7 @@
 
                 if (ecData && ecData.dataIndex != null) {
                   var dataModel = ecData.dataModel || ecModel.getSeriesByIndex(ecData.seriesIndex);
-                  params = dataModel && dataModel.getDataParams(ecData.dataIndex, ecData.dataType) || {};
+                  params = dataModel && dataModel.getDataParams(ecData.dataIndex, ecData.dataType, el) || {};
                   return true;
                 } // If element has custom eventData of components
                 else if (ecData.eventData) {
