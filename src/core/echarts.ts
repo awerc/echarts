@@ -2587,7 +2587,7 @@ echartsProto.one = function (eventName: string, cb: Function, ctx?: any) {
 
 const MOUSE_EVENT_NAMES: ZRElementEventName[] = [
     'click', 'dblclick', 'mouseover', 'mouseout', 'mousemove',
-    'mousedown', 'mouseup', 'globalout', 'contextmenu'
+    'mousedown', 'mouseup', 'globalout', 'contextmenu', 'mousewheel'
 ];
 
 function disposedWarning(id: string): void {

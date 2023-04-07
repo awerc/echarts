@@ -260,41 +260,41 @@ class RoamController extends Eventful<{
         // by event listener themselves.
 
         if (gestureOnTouchPad) {
-            const WindowScrollSpeedFactor = .3;
+            const WindowScrollSpeedFactor = .5;
             const zoomFactor = 1.1;
-            const wheelZoomSpeed = 1 / 23;
+            const wheelZoomSpeed = 1 / 30;
             // FIXME zrender type error
             const wheelEvent = e.event as unknown as WheelEvent;
-            if (wheelEvent.ctrlKey) {
-                shouldZoom && checkPointerAndTrigger(this, 'zoom', 'zoomOnMouseWheel', e, {
+            if (shouldZoom && (Math.abs(wheelEvent.deltaY) > Math.abs(wheelEvent.deltaX) || Math.abs(wheelEvent.deltaY) > 50)) {
+                checkPointerAndTrigger(this, 'zoom', 'zoomOnMouseWheel', e, {
                     scale: 1 / Math.pow(zoomFactor, wheelEvent.deltaY * wheelZoomSpeed),
                     originX,
                     originY,
                     isAvailableBehavior: null
                 });
             }
-            else {
-                let offsetY = 0;
-                let offsetX = 0;
-                if (wheelEvent.deltaY) {
-                    offsetY = Math.round(wheelEvent.deltaY * WindowScrollSpeedFactor);
-                }
-                if (wheelEvent.deltaX) {
-                    offsetX = Math.round(wheelEvent.deltaX * WindowScrollSpeedFactor);
-                }
-                shouldMove && checkPointerAndTrigger(this, 'pan', 'moveOnMouseMove', e, {
-                    // @ts-nocheck
-                    originX,
-                    originY,
-                    oldX: originX,
-                    oldY: originY,
-                    dx: -offsetX,
-                    dy: -offsetY,
-                    newX: originX - offsetX,
-                    newY: originY - offsetY,
-                    isAvailableBehavior: null
-                } as RoamEventParams['pan']);
+
+            let offsetY = 0;
+            let offsetX = 0;
+            if (wheelEvent.deltaY) {
+                offsetY = Math.round(wheelEvent.deltaY * WindowScrollSpeedFactor);
             }
+            if (wheelEvent.deltaX) {
+                offsetX = Math.round(wheelEvent.deltaX * WindowScrollSpeedFactor);
+            }
+            shouldMove && checkPointerAndTrigger(this, 'pan', 'moveOnMouseMove', e, {
+                // @ts-nocheck
+                originX,
+                originY,
+                oldX: originX,
+                oldY: originY,
+                dx: -offsetX,
+                dy: 0,
+                newX: originX - offsetX,
+                newY: originY,
+                isAvailableBehavior: null
+            } as RoamEventParams['pan']);
+
             return;
         }
 

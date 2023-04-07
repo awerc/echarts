@@ -29919,7 +29919,7 @@
       this.on.call(this, eventName, wrapped, ctx);
     };
 
-    var MOUSE_EVENT_NAMES = ['click', 'dblclick', 'mouseover', 'mouseout', 'mousemove', 'mousedown', 'mouseup', 'globalout', 'contextmenu'];
+    var MOUSE_EVENT_NAMES = ['click', 'dblclick', 'mouseover', 'mouseout', 'mousemove', 'mousedown', 'mouseup', 'globalout', 'contextmenu', 'mousewheel'];
 
     function disposedWarning(id) {
       if ("development" !== 'production') {
@@ -60694,11 +60694,21 @@
 
 
         if (gestureOnTouchPad) {
-          var WindowScrollSpeedFactor = .3;
+          var WindowScrollSpeedFactor = .5;
           var zoomFactor = 1.1;
-          var wheelZoomSpeed = 1 / 23; // FIXME zrender type error
+          var wheelZoomSpeed = 1 / 30; // FIXME zrender type error
 
           var wheelEvent = e.event;
+
+          if (shouldZoom && (Math.abs(wheelEvent.deltaY) > Math.abs(wheelEvent.deltaX) || Math.abs(wheelEvent.deltaY) > 50)) {
+            checkPointerAndTrigger(this, 'zoom', 'zoomOnMouseWheel', e, {
+              scale: 1 / Math.pow(zoomFactor, wheelEvent.deltaY * wheelZoomSpeed),
+              originX: originX,
+              originY: originY,
+              isAvailableBehavior: null
+            });
+          }
+
           var offsetY = 0;
           var offsetX = 0;
 
@@ -60710,28 +60720,18 @@
             offsetX = Math.round(wheelEvent.deltaX * WindowScrollSpeedFactor);
           }
 
-          if (Math.abs(offsetY) > Math.abs(offsetX) && shouldZoom) {
-            checkPointerAndTrigger(this, 'zoom', 'zoomOnMouseWheel', e, {
-              scale: 1 / Math.pow(zoomFactor, wheelEvent.deltaY * wheelZoomSpeed),
-              originX: originX,
-              originY: originY,
-              isAvailableBehavior: null
-            });
-          } else {
-            shouldMove && checkPointerAndTrigger(this, 'pan', 'moveOnMouseMove', e, {
-              // @ts-nocheck
-              originX: originX,
-              originY: originY,
-              oldX: originX,
-              oldY: originY,
-              dx: -offsetX,
-              dy: -offsetY,
-              newX: originX - offsetX,
-              newY: originY - offsetY,
-              isAvailableBehavior: null
-            });
-          }
-
+          shouldMove && checkPointerAndTrigger(this, 'pan', 'moveOnMouseMove', e, {
+            // @ts-nocheck
+            originX: originX,
+            originY: originY,
+            oldX: originX,
+            oldY: originY,
+            dx: -offsetX,
+            dy: 0,
+            newX: originX - offsetX,
+            newY: originY,
+            isAvailableBehavior: null
+          });
           return;
         }
 

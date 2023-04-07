@@ -28917,7 +28917,7 @@
       this.on.call(this, eventName, wrapped, ctx);
     };
 
-    var MOUSE_EVENT_NAMES = ['click', 'dblclick', 'mouseover', 'mouseout', 'mousemove', 'mousedown', 'mouseup', 'globalout', 'contextmenu'];
+    var MOUSE_EVENT_NAMES = ['click', 'dblclick', 'mouseover', 'mouseout', 'mousemove', 'mousedown', 'mouseup', 'globalout', 'contextmenu', 'mousewheel'];
 
     function disposedWarning(id) {
       if ("development" !== 'production') {
