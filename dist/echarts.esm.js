@@ -50586,7 +50586,8 @@ function (_super) {
     var wheelDelta = e.wheelDelta;
     var absWheelDeltaDelta = Math.abs(wheelDelta);
     var originX = e.offsetX;
-    var originY = e.offsetY; // wheelDelta maybe -0 in chrome mac.
+    var originY = e.offsetY; // console.log('======this', this);
+    // wheelDelta maybe -0 in chrome mac.
 
     if (wheelDelta === 0 || !shouldZoom && !shouldMove) {
       return;
@@ -89198,6 +89199,14 @@ function createCoordSysRecord(api, coordSysModel) {
       coordSysRecord.dataZoomInfoMap.each(function (dzInfo) {
         // Check whether the behaviors (zoomOnMouseWheel, moveOnMouseMove,
         // moveOnMouseWheel, ...) enabled.
+        // accelerate pan on zoomed chart
+        if (eventName === 'pan' && event.dx != null && event.newX != null) {
+          var zoom = Math.abs(dzInfo.model.option.start - dzInfo.model.option.end);
+          var dx = event.dx * (100 / Math.min(100, zoom * 5));
+          event.dx = dx;
+          event.newX = event.oldX + dx;
+        }
+
         if (!event.isAvailableBehavior(dzInfo.model.option)) {
           return;
         }

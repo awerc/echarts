@@ -128,6 +128,15 @@ function createCoordSysRecord(api: ExtensionAPI, coordSysModel: CoordinateSystem
             coordSysRecord.dataZoomInfoMap.each(function (dzInfo) {
                 // Check whether the behaviors (zoomOnMouseWheel, moveOnMouseMove,
                 // moveOnMouseWheel, ...) enabled.
+
+                // accelerate pan on zoomed chart
+                if (eventName === 'pan' && (event as any).dx != null && (event as any).newX != null) {
+                    const zoom = Math.abs(dzInfo.model.option.start - dzInfo.model.option.end);
+                    const dx = (event as any).dx * (100 / Math.min(100, zoom * 5));
+                    (event as any).dx = dx;
+                    (event as any).newX = (event as any).oldX + dx;
+                }
+
                 if (!event.isAvailableBehavior(dzInfo.model.option)) {
                     return;
                 }

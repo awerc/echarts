@@ -1,6 +1,6 @@
 {
   "name": "echarts-touchpad",
-  "version": "5.4.3-touchpad.8",
+  "version": "5.4.3-touchpad.9",
   "description": "Apache ECharts is a powerful, interactive charting and data visualization library for browser",
   "license": "Apache-2.0",
   "main": "dist/echarts.js",
