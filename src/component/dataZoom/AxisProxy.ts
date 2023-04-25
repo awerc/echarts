@@ -151,6 +151,7 @@ class AxisProxy {
         const valueWindow = [] as unknown as [number, number];
         let hasPropModeValue;
 
+        // TODO try to preserve dataZoom value
         each(['start', 'end'] as const, function (prop, idx) {
             let boundPercent = opt[prop];
             let boundValue = opt[prop + 'Value' as 'startValue' | 'endValue'];

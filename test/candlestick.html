@@ -132,7 +132,8 @@ under the License.
                         {
                             type: 'inside',
                             start: 50,
-                            end: 100
+                            end: 100,
+                            gestureOnTouchPad: true
                         },
                         {
                             show: true,
@@ -144,129 +145,18 @@ under the License.
                     ],
                     series: [
                         {
-                            name: '开盘',
-                            type: 'line',
-                            data: (function () {
-                                opens = [];
-                                for (var i = 0, len = data.values.length; i < len; i++) {
-                                    opens.push(data.values[i][0]);
-                                }
-                                return opens;
-                            })(),
-                            smooth: true,
-                            lineStyle: {
-                                normal: {color: '#aaa'}
-                            }
-                        },
-                        {
                             name: '上证指数',
                             type: 'candlestick',
                             data: data.values,
-                            // itemStyle: {
-                            //     borderColor: '#345',
-                            //     borderColor0: '#998',
-                            //     borderWidth: 2
-                            // },
-                            // encode: {
-                            //     tooltip: [0, 1, 2, 3]
-                            // },
-                            // tooltip: {
-                            //     formatter: function (param) {
-                            //         var param = param[0];
-                            //         return [
-                            //             '日期：' + param.name + '<hr size=1 style="margin: 3px 0">',
-                            //             '开盘：' + param.data[0] + '<br/>',
-                            //             '收盘：' + param.data[1] + '<br/>',
-                            //             '日最低：' + param.data[2] + '<br/>',
-                            //             '日最高：' + param.data[3] + '<br/>'
-                            //         ].join('')
-                            //     }
-                            // },
-                            markPoint: {
-                                data: [
-                                    {
-                                        name: '某个坐标',
-                                        coord: ['2013/5/21', 2300]
-                                    },
-                                    {
-                                        name: '某个屏幕坐标',
-                                        x: 100,
-                                        y: 200,
-                                        label: {
-                                            normal: {
-                                                show: false
-                                            },
-                                            emphasis: {
-                                                show: true,
-                                                position: 'top',
-                                                formatter: 'zxcv'
-                                            }
-                                        }
-                                    },
-                                    {
-                                        name: 'max value (default)',
-                                        type: 'max'
-                                    },
-                                    {
-                                        name: 'min value (default)',
-                                        type: 'min'
-                                    },
-                                    {
-                                        name: 'max value (dim:close)',
-                                        type: 'max',
-                                        valueDim: 'close'
-                                    },
-                                    {
-                                        name: 'average value (dim:close)',
-                                        type: 'average',
-                                        valueDim: 'close'
-                                    }
-                                ],
-                                tooltip: {
-                                    formatter: function (param) {
-                                        return param.name + '<br>' + (param.data.coord || '');
-                                    }
-                                }
-                            },
-                            markLine: {
-                                data: [
-                                    [
-                                        {name: '两个坐标之间的标线', coord: ['2013/4/25', 2130]},
-                                        {coord: ['2013/5/27', 2220]}
-                                    ],
-                                    [
-                                        {name: '两个屏幕坐标之间的标线', x: 100, y: 100},
-                                        {x: 250, y: 130}
-                                    ],
-                                    [
-                                        {name: 'max - min', type: 'max'},
-                                        {type: 'min'}
-                                    ],
-                                    {
-                                        name: 'min line',
-                                        type: 'min'
-                                    },
-                                    {
-                                        name: 'max line on dim:open',
-                                        type: 'max',
-                                        valueDim: 'open'
-                                    }
-                                ]
-                            }
                         }
                     ]
                 });
-
-                // setTimeout(function () {
-                //     chart.setOption({
-                //         dataZoom: {
-                //             startValue: '2013/1/28',
-                //             endValue: '2013/1/30'
-                //         }
-                //     });
-                // }, 1000);
             }
 
         </script>
+        <button onclick="chart.setOption({series: [{data: [
+            ...Array.from({length: 300}, () => [2290.1, 2248.35, 2226.22, 2290.1]),
+             ...chart.getOption().series[0].data
+         ]}]})">add data</button>
     </body>
 </html>
